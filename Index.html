@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboards</title>
+<style>
+  :root,[data-theme="light"]{
+    --bg:#F2F2F7;--card:#FFFFFF;--card-2:#F2F2F7;--sep:#C6C6C8;
+    --label:#000000;--label-2:rgba(60,60,67,.6);--label-3:rgba(60,60,67,.3);
+    --tint:#007AFF;
+  }
+  [data-theme="dark"]{
+    --bg:#000000;--card:#1C1C1E;--card-2:#2C2C2E;--sep:#38383A;
+    --label:#FFFFFF;--label-2:rgba(235,235,245,.6);--label-3:rgba(235,235,245,.3);
+    --tint:#0A84FF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--label);min-height:100vh;padding:36px 18px 48px;
+    transition:background .25s,color .25s;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px;margin:0 auto}
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+  .eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--label-2);font-weight:600;margin-bottom:4px}
+  h1{font-size:28px;font-weight:700;letter-spacing:-.02em}
+  .count{font-size:13px;color:var(--label-2);margin-top:4px}
+  .seg{display:inline-flex;background:var(--card-2);border:1px solid var(--sep);border-radius:9px;padding:2px}
+  .seg button{appearance:none;border:0;background:transparent;color:var(--label-2);font:inherit;font-size:13px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;transition:.18s}
+  .seg button.on{background:var(--card);color:var(--label);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  [data-theme="dark"] .seg button.on{background:#48484A}
+
+  .list{display:flex;flex-direction:column;gap:12px}
+  a.row{
+    display:flex;align-items:center;gap:16px;text-decoration:none;color:inherit;
+    background:var(--card);border:1px solid var(--sep);border-radius:16px;padding:18px 20px;
+    transition:transform .12s ease,border-color .15s;
+  }
+  a.row:hover{transform:translateY(-1px);border-color:var(--tint)}
+  a.row:focus-visible{outline:2px solid var(--tint);outline-offset:2px}
+  .icon{width:38px;height:38px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--card-2);border:1px solid var(--sep)}
+  .icon svg{width:20px;height:20px;stroke:var(--tint);fill:none;stroke-width:2}
+  .meta{flex:1;min-width:0}
+  .title{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .file{font-size:12.5px;color:var(--label-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chev{color:var(--label-3);flex:0 0 auto}
+  .state{background:var(--card);border:1px dashed var(--sep);border-radius:16px;padding:28px 22px;text-align:center;color:var(--label-2);font-size:14px;line-height:1.55}
+  .state b{color:var(--label)}
+</style>
+</head>
+<body data-theme="dark">
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Launchpad</div>
+      <h1>Dashboards</h1>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="seg" id="seg">
+      <button data-t="light">Light</button>
+      <button data-t="dark" class="on">Dark</button>
+    </div>
+  </div>
+  <div class="list" id="list">
+    <div class="state">Loading…</div>
+  </div>
+</div>
+
+<script>
+/* Optional override — leave blank to auto-detect from the page URL */
+const OWNER_OVERRIDE = "";
+const REPO_OVERRIDE  = "";
+
+const seg=document.getElementById('seg');
+seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.body.dataset.theme=b.dataset.t;[...seg.children].forEach(x=>x.classList.toggle('on',x===b));});
+
+function detect(){
+  // hostname: <owner>.github.io   pathname: /<repo>/...
+  let owner=OWNER_OVERRIDE, repo=REPO_OVERRIDE;
+  const host=location.hostname;
+  if(!owner && host.endsWith('.github.io')) owner=host.replace('.github.io','');
+  if(!repo){
+    const seg0=location.pathname.split('/').filter(Boolean)[0];
+    if(seg0) repo=seg0;
+  }
+  return {owner,repo};
+}
+
+function titleize(name){
+  return name.replace(/\.html$/i,'').replace(/[-_]+/g,' ')
+    .replace(/\b\w/g,c=>c.toUpperCase());
+}
+
+const chev=`<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>`;
+const ico=`<span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="10" width="8" height="11" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg></span>`;
+
+async function load(){
+  const list=document.getElementById('list');
+  const {owner,repo}=detect();
+
+  if(!owner || !repo){
+    list.innerHTML=`<div class="state">This page lists your dashboards automatically once it's live on <b>GitHub Pages</b>.<br>Open it at your <b>github.io</b> URL to see them.</div>`;
+    return;
+  }
+
+  try{
+    const res=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`,
+      {headers:{'Accept':'application/vnd.github+json'}});
+    if(!res.ok) throw new Error(res.status);
+    const files=await res.json();
+    const dash=files
+      .filter(f=>f.type==='file' && /\.html$/i.test(f.name) && f.name.toLowerCase()!=='index.html')
+      .sort((a,b)=>a.name.localeCompare(b.name));
+
+    if(!dash.length){
+      list.innerHTML=`<div class="state">No dashboards yet.<br>Upload any <b>.html</b> file (other than index.html) to this repo and it appears here.</div>`;
+      document.getElementById('count').textContent='';
+      return;
+    }
+
+    list.innerHTML=dash.map(f=>`
+      <a class="row" href="./${encodeURIComponent(f.name)}">
+        ${ico}
+        <span class="meta">
+          <span class="title">${titleize(f.name)}</span>
+          <span class="file">${f.name}</span>
+        </span>
+        ${chev}
+      </a>`).join('');
+    document.getElementById('count').textContent=`${dash.length} dashboard${dash.length>1?'s':''}`;
+  }catch(err){
+    list.innerHTML=`<div class="state">Couldn't reach the GitHub list right now${String(err.message)==='403'?' (rate limit — try again shortly)':''}.<br>The dashboards are still live at their own URLs.</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>
